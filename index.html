@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Один вечер в английском пабе</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: a visual novel. Pub backdrop, characters standing in a row, a glass stage panel for mini-games,
+   and a dialogue box at the bottom with big readable text. */
+:root{
+  --wall:#2a1a10; --wall2:#4b3020; --wood:#8a5a30; --cream:#fff6e3; --paper:#f6e9cf;
+  --brass:#f0bd62; --ale:#eda63b; --ok:#a8dc8c; --no:#ff8f6b; --ink:#2a1706;
+  --panel:rgba(30,18,10,.80); --line:rgba(255,236,200,.26); --muted:#e0cfae;
+  --glow:rgba(255,196,110,.35);
+  --display:'Playfair Display',Georgia,'Times New Roman',serif;
+  --body:'Nunito','Segoe UI',Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--wall);color:var(--cream);font-family:var(--body);font-weight:500;font-size:clamp(17px,1.5vw,21px);line-height:1.55;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance}
+h2{font-size:1.7em}h3{font-size:1.2em;color:var(--brass)}
+p{text-wrap:pretty}
+
+#scene{position:fixed;inset:0;z-index:0}
+#scene svg{width:100%;height:100%;display:block}
+#scene .glow{transition:fill .8s}
+#app{position:fixed;inset:0;z-index:1;display:grid;grid-template-rows:auto 1fr auto}
+
+/* HUD */
+#hud{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px clamp(12px,2vw,28px);background:linear-gradient(180deg,rgba(20,10,4,.78),transparent)}
+#chtitle{font-family:var(--display);font-weight:700;font-size:1.05em;min-width:0}
+#chtitle small{display:block;font-family:var(--body);font-weight:700;font-size:.62em;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+#pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#pills button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:rgba(255,246,227,.08);font-weight:800;font-size:.8em;padding:0}
+#pills button.on{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+#pills button.done{border-color:var(--ok);color:var(--ok)}
+#stats{display:flex;align-items:center;gap:14px;font-weight:700;white-space:nowrap}
+#hearts{display:flex;gap:3px}
+#hearts svg{width:20px;height:20px;transition:transform .2s}
+#hearts .off path{fill:rgba(255,246,227,.15)}
+#hearts path{fill:#ff6a5a}
+.pop{position:fixed;font-weight:800;color:var(--ok);pointer-events:none;animation:up 1s forwards;z-index:30;text-shadow:0 2px 6px #000}
+@keyframes up{to{transform:translateY(-40px);opacity:0}}
+.chip-btn{border:1px solid var(--line);background:rgba(255,246,227,.1);border-radius:999px;padding:.25em .9em;font-weight:700;font-size:.85em}
+.chip-btn:hover{border-color:var(--brass)}
+
+/* area */
+#area{position:relative;min-height:0}
+#cast{position:absolute;inset:0;pointer-events:none}
+.ch{position:absolute;bottom:-4px;width:clamp(110px,15vw,190px);transform-origin:bottom center;transition:left .6s,right .6s,transform .5s,filter .4s,opacity .4s;filter:brightness(.72)}
+.ch svg{width:100%;display:block;overflow:visible}
+.ch.talk{filter:none;transform:translateY(-6px)}
+.ch[data-pos=l]{left:6%}.ch[data-pos=l2]{left:22%}.ch[data-pos=m]{left:50%;margin-left:calc(clamp(110px,15vw,190px)/-2)}
+.ch[data-pos=r2]{right:22%}.ch[data-pos=r]{right:6%}
+.staged .ch{transform:scale(.62)}.staged .ch.talk{transform:scale(.66) translateY(-4px)}
+.ch .brow{transition:transform .25s}.ch.brow-up .brow{transform:translateY(-6px)}
+#sw{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:10px clamp(10px,2vw,24px);pointer-events:none}
+#stage{display:none;pointer-events:auto;width:min(780px,100%);max-height:100%;overflow:auto;padding:clamp(14px,2vw,26px);background:var(--panel);border:1px solid var(--line);border-radius:18px;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 24px 50px rgba(0,0,0,.5)}
+.cap{color:var(--muted);font-size:.9em}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.btn{background:rgba(255,246,227,.12);border:1px solid var(--line);border-radius:999px;padding:.55em 1.2em;font-weight:700;transition:transform .15s,border-color .2s,background .2s}
+.btn:hover{border-color:var(--brass);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(180deg,#f7cd7c,#dd9a35);color:var(--ink);border-color:#fbe0a8}
+.btn.sel{background:rgba(240,189,98,.3);border-color:var(--brass)}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* dialogue */
+#dlg{position:relative;margin:0 auto 14px;width:min(1040px,calc(100% - 24px));padding:14px 20px 14px;background:rgba(26,15,8,.90);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,.55);cursor:pointer;min-height:132px}
+#name{display:inline-block;font-family:var(--display);font-weight:800;font-size:.95em;padding:.1em .8em;border-radius:999px;margin-bottom:6px;color:var(--ink);background:var(--brass)}
+#name[data-w=kate]{background:#7fd0d6}#name[data-w=you]{background:#f3a65c}#name[data-w=jim]{background:#d9d2c0}#name[data-w=us]{background:#8fb5ee}#name[data-w=fr]{background:#f1b6bf}#name[data-w=dave]{background:#9fcf86}#name[data-w=sue]{background:#d3a6e6}#name[data-w=bob]{background:#b4c0cc}
+#txt{font-size:1.08em;line-height:1.6;min-height:3.2em}
+#txt.narr{font-style:italic;color:var(--muted)}
+#more{position:absolute;right:18px;bottom:10px;color:var(--brass);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+#choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;background:rgba(255,246,227,.10);border:1px solid var(--line);border-radius:12px;padding:.6em .9em;font-weight:700;line-height:1.35;transition:background .2s,border-color .2s,transform .15s}
+.opt i{flex:none;width:1.6em;height:1.6em;border-radius:50%;background:var(--brass);color:var(--ink);font-style:normal;font-weight:800;display:grid;place-items:center;font-size:.85em}
+.opt:hover{background:rgba(240,189,98,.22);border-color:var(--brass);transform:translateX(3px)}
+
+/* effects */
+body.good #scene{animation:gl .5s}body.bad #scene{animation:rd .5s}
+@keyframes gl{50%{filter:brightness(1.25) saturate(1.2)}}@keyframes rd{25%,75%{filter:brightness(.8) sepia(.5) hue-rotate(-30deg)}}
+body.bad #hearts{animation:shake .4s}@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* overlay */
+#ov{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at 50% 35%,rgba(60,35,18,.55),rgba(14,7,3,.9))}
+#ov .box{width:min(860px,100%);max-height:100%;overflow:auto;padding:clamp(18px,3vw,40px);background:rgba(30,18,10,.88);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 70px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:14px}
+#ov h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,5vw,3.6rem);line-height:1.05;text-wrap:balance}
+.tag{font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:.7em;color:var(--brass)}
+.lead{font-size:1.1em}
+.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.menu button{border:1px solid var(--line);background:rgba(255,246,227,.08);border-radius:10px;padding:.5em .7em;text-align:left;font-weight:700;font-size:.85em}
+.menu button:hover{border-color:var(--brass)}
+.menu button b{color:var(--brass);margin-right:.4em}
+.cx{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.cx div{background:rgba(255,246,227,.08);border:1px solid var(--line);border-radius:12px;padding:.7em .9em;font-size:.88em}
+.cx h4{font-family:var(--display);color:var(--brass);margin-bottom:.2em;font-size:1.05em}
+
+/* mini-game bits */
+.q{position:relative;height:260px;border-radius:12px;background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.35));overflow:hidden}
+.q .counter{position:absolute;left:0;right:0;top:0;height:36px;background:linear-gradient(180deg,#a9733f,#6e4524);border-bottom:3px solid var(--brass)}
+.who{position:absolute;width:34px;height:52px;color:var(--paper);transition:left 1s cubic-bezier(.3,.7,.2,1),top 1s cubic-bezier(.3,.7,.2,1),opacity .8s;filter:drop-shadow(0 4px 4px rgba(0,0,0,.4))}
+.who svg{width:100%;height:100%;fill:currentColor}.who.me{color:var(--ale)}
+.who.served{top:44px!important;opacity:0}
+.who .n{position:absolute;top:-12px;left:50%;transform:translateX(-50%) scale(0);background:var(--brass);color:var(--ink);font-weight:800;font-size:12px;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;transition:transform .3s}
+.showq .who .n{transform:translateX(-50%) scale(1)}
+.who .bang{position:absolute;top:-24px;left:100%;font-weight:800;color:var(--no);opacity:0;transition:opacity .3s}
+.frown .who:not(.me) .bang{opacity:1}
+.barman{position:absolute;left:50%;top:4px;width:34px;height:52px;margin-left:-17px;color:#d3dbc8;z-index:2;transition:transform .5s}
+.barman svg{width:100%;height:100%;fill:currentColor}.barman.away{transform:translateX(70px)}
+.zone{cursor:pointer;transition:fill .2s,stroke .2s;fill:rgba(255,244,222,.08);stroke:rgba(255,244,222,.4);stroke-dasharray:5 4}
+.zone:hover{fill:rgba(240,189,98,.32);stroke:var(--brass);stroke-dasharray:none}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+.chip{border:1px solid var(--line);background:rgba(255,246,227,.08);border-radius:12px;padding:.6em .9em;text-align:left;font-weight:700;transition:background .2s}
+.chip.sel{background:rgba(240,189,98,.3);border-color:var(--brass)}
+.faces{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.face{display:flex;flex-direction:column;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(255,246,227,.08);border-radius:14px;padding:.7em;font-weight:700;font-size:.85em;text-align:center}
+.face:hover{border-color:var(--brass)}.face svg{width:84px}
+.gz-track{position:relative;height:22px;border-radius:99px;background:rgba(0,0,0,.4);border:1px solid var(--line);margin:14px 0}
+.gz-zone{position:absolute;left:40%;width:20%;top:0;bottom:0;background:rgba(168,220,140,.45);border-radius:99px}
+.gz-mark{position:absolute;top:-4px;width:8px;height:30px;margin-left:-4px;border-radius:4px;background:var(--brass)}
+.eye .pupil{transition:none}.eye .brw{transition:transform .3s}.eye.up .brw{transform:translateY(-14px)}
+.meter{height:18px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#d9992f,#fbe0a8);transition:width .6s}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:2.6em;margin:8px 0}
+.chain .c{padding:.2em .7em;border-radius:99px;background:rgba(240,189,98,.28);border:1px solid var(--brass);font-weight:700;animation:pp .3s both}
+.chain .a{color:var(--brass)}@keyframes pp{from{transform:scale(.4);opacity:0}}
+.said{min-height:3em;padding:.6em .9em;border-radius:10px;background:rgba(0,0,0,.3);border-left:3px solid var(--brass);margin:8px 0}
+.rings{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.ring{position:relative;width:190px;height:190px}.ring svg{width:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:12;stroke-linecap:round}.ring .bg{stroke:rgba(255,246,227,.15)}
+.ring .fg{stroke:var(--brass);stroke-dasharray:314;stroke-dashoffset:314;transition:stroke-dashoffset 1.6s cubic-bezier(.3,.7,.2,1)}
+.ring .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.6em}
+.ring .v small{font-family:var(--body);font-weight:700;font-size:.52em;color:var(--muted);max-width:6.2em;text-align:center;line-height:1.2}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.flip{min-height:130px;border:1px solid var(--line);border-radius:14px;background:rgba(255,246,227,.08);padding:.8em;text-align:left;font-size:.9em}
+.flip b{display:block;font-family:var(--display);color:var(--brass);font-size:1.1em;margin-bottom:.3em}
+.flip.open{background:rgba(240,189,98,.18);border-color:var(--brass)}
+.glasses{display:flex;gap:4px;justify-content:center}
+.glasses button{background:none;border:0;width:19%;padding:0;position:relative}
+.glasses svg{width:100%;transition:transform .25s}.glasses button:hover svg{transform:translateY(-6px)}
+.glasses b{position:absolute;left:0;right:0;bottom:22%;font-family:var(--display);font-size:1.6em;color:var(--ink);pointer-events:none}
+.pint .ale{fill:var(--ale)}.pint .foam{fill:#fff4da}
+.pint .gl{fill:rgba(255,255,255,.1);stroke:rgba(255,244,222,.8);stroke-width:2.5;stroke-linejoin:round}
+.pint .fill{transform-origin:60px 168px;transform:scaleY(var(--f,1));transition:transform 1.1s cubic-bezier(.3,.7,.2,1)}
+.pint .bub{fill:rgba(255,244,218,.6);animation:rise 3s linear infinite}.pint .bub:nth-of-type(2){animation-delay:-1s}.pint .bub:nth-of-type(3){animation-delay:-2s}
+@keyframes rise{from{transform:translateY(0);opacity:.8}to{transform:translateY(-90px);opacity:0}}
+.cheers g.g1,.cheers g.g2{transition:transform .35s cubic-bezier(.5,0,.3,1.4);transform-origin:50% 100%;transform-box:fill-box}
+.clink .g1{transform:translateX(22px) rotate(9deg)}.clink .g2{transform:translateX(-22px) rotate(-9deg)}
+.spark{opacity:0;transform-origin:center;transform-box:fill-box}.clink .spark{animation:sp .8s .25s both}
+@keyframes sp{0%{opacity:0;transform:scale(.2)}40%{opacity:1;transform:scale(1.3)}100%{opacity:0;transform:scale(1.8)}}
+input[type=range]{width:100%;accent-color:var(--brass);margin:12px 0}
+canvas{width:auto;max-width:100%;max-height:32vh;margin:0 auto;border-radius:12px;background:rgba(0,0,0,.3);display:block}
+.score-big{font-family:var(--display);font-weight:800;font-size:2.4em;color:var(--brass)}
+
+@media (max-width:760px){
+  #pills{display:none}
+  .ch{width:96px}
+  #hud{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01s!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="pers" viewBox="0 0 40 62"><circle cx="20" cy="12" r="10"/><path d="M3 62 Q3 27 20 27 Q37 27 37 62 Z"/></symbol>
+</svg>
+
+<div id="scene" aria-hidden="true">
+  <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241409"/><stop offset="1" stop-color="#4d3220"/></linearGradient>
+      <linearGradient id="cnt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a87238"/><stop offset="1" stop-color="#5e3a1c"/></linearGradient>
+      <radialGradient id="lg"><stop offset="0" stop-color="#ffd58a" stop-opacity=".75"/><stop offset="1" stop-color="#ffd58a" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#wall)"/>
+    <g id="panels"></g>
+    <rect y="170" width="1600" height="10" fill="#7b4f2c"/><rect y="270" width="1600" height="10" fill="#7b4f2c"/>
+    <g id="bottles"></g>
+    <g id="lamps"></g>
+    <rect y="600" width="1600" height="26" fill="#d9a653"/>
+    <rect y="620" width="1600" height="300" fill="url(#cnt)"/>
+    <g id="cpanels" stroke="rgba(0,0,0,.35)" stroke-width="3"></g>
+  </svg>
+</div>
+
+<div id="app">
+  <header id="hud">
+    <div id="chtitle"><small id="chnum"></small><span id="chname"></span></div>
+    <div id="pills"></div>
+    <div id="stats">
+      <span id="hearts" title="Терпение бармена"></span>
+      <span>Английскость <b id="score">0</b></span>
+      <button class="chip-btn" id="cxBtn" type="button">Блокнот Кейт <b id="cxN">0</b>/10</button>
+    </div>
+  </header>
+  <section id="area">
+    <div id="cast"></div>
+    <div id="sw"><div id="stage"></div></div>
+  </section>
+  <footer id="dlg">
+    <span id="name"></span>
+    <p id="txt"></p>
+    <div id="choices"></div>
+    <span id="more" style="visibility:hidden">&#9654;</span>
+  </footer>
+</div>
+<div id="ov" role="dialog" aria-modal="true"></div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+var tok=0;
+var S={score:0,hearts:3,codex:[],ch:-1};
+var NAMES={narr:'',you:'Вы',kate:'Кейт Фокс',jim:'Джим, бармен',us:'Американец',fr:'Француз',dave:'Дейв',sue:'Сью',bob:'Боб'};
+var TITLES=['Ожидание','Стойка','Невидимая очередь','Пантомима','Please и thanks','And one for yourself?','Лицемерие?','Завсегдатаи','Спор','Финал'];
+function pr(fn){var t=tok;return new Promise(function(res){fn(function(v){if(t===tok)res(v)})})}
+function never(){return new Promise(function(){})}
+function sleep(ms){var t=tok;return new Promise(function(r){setTimeout(function(){if(t===tok)r()},ms)})}
+
+/* ---------- backdrop ---------- */
+(function(){
+  var b='',i,c=['#7a3b1e','#2f5d3a','#8a6a2a','#3b4f7a','#6d2b2b','#4a6a5a'];
+  for(i=0;i<34;i++){var x=40+i*46,h=50+(i*37)%36,col=c[i%c.length];
+    b+='<rect x="'+x+'" y="'+(170-h)+'" width="22" height="'+h+'" rx="5" fill="'+col+'" opacity=".85"/><rect x="'+(x+7)+'" y="'+(170-h-16)+'" width="8" height="18" rx="2" fill="'+col+'" opacity=".85"/>';
+    var h2=40+(i*53)%40;b+='<rect x="'+(x+8)+'" y="'+(270-h2)+'" width="22" height="'+h2+'" rx="5" fill="'+c[(i+2)%c.length]+'" opacity=".75"/>';}
+  $('#bottles').innerHTML=b;
+  var p='';for(i=0;i<20;i++)p+='<rect x="'+(i*84)+'" y="330" width="80" height="270" fill="'+(i%2?'#3d2615':'#44291a')+'"/>';
+  $('#panels').innerHTML=p;
+  var l='';[300,800,1300].forEach(function(x){l+='<circle class="glow" cx="'+x+'" cy="150" r="260" fill="url(#lg)"/><line x1="'+x+'" y1="0" x2="'+x+'" y2="70" stroke="#c8963e" stroke-width="3"/><path d="M'+(x-46)+' 120 Q'+x+' 40 '+(x+46)+' 120Z" fill="#c8963e"/><ellipse cx="'+x+'" cy="122" rx="22" ry="8" fill="#fff0c0"/>'});
+  $('#lamps').innerHTML=l;
+  var cp='';for(i=0;i<9;i++)cp+='<rect x="'+(i*190+10)+'" y="650" width="170" height="240" rx="6" fill="rgba(0,0,0,.12)"/>';
+  $('#cpanels').innerHTML=cp;
+})();
+
+/* ---------- characters ---------- */
+var CH={you:{skin:'#f1c9a0',hair:'#5a3a22',shirt:'#e9822f'},kate:{skin:'#f3d2b3',hair:'#9a3f1f',shirt:'#2f7f86'},jim:{skin:'#e8b98f',hair:'#3a2a20',shirt:'#cfc8b4'},
+  us:{skin:'#f0c39a',hair:'#c79a3a',shirt:'#3d6fb5'},fr:{skin:'#ecc3a0',hair:'#2b2b2b',shirt:'#f4f1ea'},dave:{skin:'#e3b088',hair:'#8a8a8a',shirt:'#4f7a3f'},
+  sue:{skin:'#f1cfb2',hair:'#cfcfcf',shirt:'#8a55a8'},bob:{skin:'#efc9a8',hair:'#6b5a46',shirt:'#55606b'}};
+var MOUTH={smile:'M46 76 Q60 90 74 76',neutral:'M48 79 L72 79',frown:'M47 84 Q60 72 73 84',wow:'M54 76 Q60 88 66 76 Q60 72 54 76Z'};
+function charSVG(id){
+  var c=CH[id],s='<svg viewBox="0 0 120 220" aria-hidden="true">',back='',front='';
+  if(id==='kate')back='<path d="M26 60 Q22 104 42 108 L42 66Z M94 60 Q98 104 78 108 L78 66Z" fill="'+c.hair+'"/>';
+  if(id==='sue')back='<circle cx="60" cy="20" r="15" fill="'+c.hair+'"/>';
+  s+=back+'<path d="M12 220 Q12 108 60 108 Q108 108 108 220Z" fill="'+c.shirt+'"/><rect x="50" y="88" width="20" height="24" fill="'+c.skin+'"/>';
+  if(id==='fr'){for(var y=140;y<220;y+=20)s+='<rect x="'+(y<150?30:16)+'" y="'+y+'" width="'+(y<150?60:88)+'" height="7" fill="#223d73"/>'}
+  if(id==='jim')s+='<path d="M32 134 L88 134 L96 220 L24 220Z" fill="#f6f1e4"/><path d="M44 112 L44 134 M76 112 L76 134" stroke="#f6f1e4" stroke-width="6"/>';
+  if(id==='you')s+='<path d="M34 110 L40 220 M86 110 L80 220" stroke="#3a2412" stroke-width="7"/>';
+  if(id==='sue')s+='<circle cx="60" cy="150" r="3" fill="#e8d3f2"/><circle cx="60" cy="172" r="3" fill="#e8d3f2"/><circle cx="60" cy="194" r="3" fill="#e8d3f2"/>';
+  if(id==='bob')s+='<path d="M54 112 L60 128 L66 112Z" fill="#fff"/><path d="M60 126 L56 160 L60 168 L64 160Z" fill="#b43b3b"/>';
+  if(id==='kate')s+='<path d="M42 104 Q60 126 78 104 L78 114 Q60 134 42 114Z" fill="#e9a43a"/><g transform="rotate(-8 30 170)"><rect x="12" y="148" width="40" height="52" rx="4" fill="#f6e9cf"/><path d="M20 162 H44 M20 172 H44 M20 182 H38" stroke="#a37a4a" stroke-width="2"/></g>';
+  s+='<ellipse cx="60" cy="62" rx="30" ry="33" fill="'+c.skin+'"/>';
+  if(id==='jim')s+='<path d="M30 56 Q30 40 40 36 Q32 56 32 66Z M90 56 Q90 40 80 36 Q88 56 88 66Z" fill="'+c.hair+'"/>';
+  else s+='<path d="M28 58 Q28 24 60 24 Q92 24 92 58 Q80 40 60 40 Q40 40 28 58Z" fill="'+c.hair+'"/>';
+  s+='<circle cx="48" cy="62" r="3.4" fill="#2a1a10"/><circle cx="72" cy="62" r="3.4" fill="#2a1a10"/>';
+  s+='<g class="brow" stroke="'+(id==='sue'||id==='dave'?'#777':'#3a2412')+'" stroke-width="3" stroke-linecap="round" fill="none"><path d="M40 51 Q48 47 56 51"/><path d="M64 51 Q72 47 80 51"/></g>';
+  s+='<path class="mouth" d="'+MOUTH.neutral+'" stroke="#6b2f20" stroke-width="3.2" fill="none" stroke-linecap="round"/>';
+  if(id==='kate')s+='<g fill="rgba(255,255,255,.18)" stroke="#2a1a10" stroke-width="2.5"><circle cx="48" cy="62" r="10"/><circle cx="72" cy="62" r="10"/></g><path d="M58 62 L62 62" stroke="#2a1a10" stroke-width="2.5"/>';
+  if(id==='jim')s+='<path d="M42 73 Q51 66 60 72 Q69 66 78 73 Q69 80 60 75 Q51 80 42 73Z" fill="#3a2a20"/>';
+  if(id==='us')s+='<path d="M26 50 Q60 8 94 50Z" fill="#c33"/><rect x="60" y="46" width="48" height="8" rx="4" fill="#a22"/>';
+  if(id==='fr')s+='<ellipse cx="66" cy="28" rx="34" ry="13" fill="#7a1f2b"/><rect x="62" y="12" width="8" height="8" rx="3" fill="#7a1f2b"/>';
+  if(id==='dave')s+='<path d="M26 48 Q60 14 96 46 L102 54 L24 54Z" fill="#5b4a3a"/>';
+  if(id==='bob')s+='<ellipse cx="60" cy="38" rx="40" ry="8" fill="#2b2b2b"/><path d="M34 38 Q34 8 60 8 Q86 8 86 38Z" fill="#2b2b2b"/>';
+  return s+'</svg>';
+}
+
+/* ---------- pint svg ---------- */
+var pid=0;
+function pint(f,nested){pid++;return '<svg viewBox="0 0 120 180"'+(nested?' width="120" height="180"':'')+' class="pint" style="--f:'+(f===undefined?1:f)+'"><defs><clipPath id="pc'+pid+'"><path d="M26 18 L94 18 L84 160 Q83 168 75 168 L45 168 Q37 168 36 160 Z"/></clipPath></defs><path class="gl" d="M26 18 L94 18 L84 160 Q83 168 75 168 L45 168 Q37 168 36 160 Z"/><g clip-path="url(#pc'+pid+')"><g class="fill"><rect class="ale" x="20" y="44" width="80" height="130"/><circle class="bub" cx="48" cy="150" r="2.6"/><circle class="bub" cx="68" cy="160" r="2"/><circle class="bub" cx="78" cy="148" r="3"/><g class="foam"><circle cx="34" cy="38" r="12"/><circle cx="52" cy="30" r="14"/><circle cx="72" cy="31" r="14"/><circle cx="88" cy="38" r="12"/><rect x="28" y="34" width="64" height="14"/></g></g></g><path d="M38 50 L44 150" stroke="rgba(255,255,255,.45)" stroke-width="4" stroke-linecap="round" fill="none"/></svg>'}
+
+/* ---------- engine ---------- */
+var dlg=$('#dlg'),nameEl=$('#name'),txt=$('#txt'),chs=$('#choices'),more=$('#more'),stg=$('#stage'),swEl=$('#sw');
+var typing=null,waiting=null,skipFn=null;
+function say(who,text,opts){
+  return pr(function(res){
+    clearInterval(typing);typing=null;waiting=null;skipFn=null;
+    $$('.ch').forEach(function(e){e.classList.toggle('talk',e.dataset.id===who)});
+    nameEl.textContent=NAMES[who]||'';nameEl.dataset.w=who;nameEl.style.display=NAMES[who]?'':'none';
+    txt.className=who==='narr'?'narr':'';txt.textContent='';chs.innerHTML='';more.style.visibility='hidden';
+    var i=0;
+    function fin(){
+      clearInterval(typing);typing=null;skipFn=null;txt.textContent=text;
+      if(opts){
+        var t0=Date.now();
+        opts.forEach(function(o,k){var b=document.createElement('button');b.type='button';b.className='opt';b.innerHTML='<i>'+(k+1)+'</i><span></span>';$('span',b).textContent=o;b.onclick=function(e){e.stopPropagation();if(Date.now()-t0<450)return;chs.innerHTML='';res(k)};chs.appendChild(b)});
+      }else{more.style.visibility='visible';waiting=function(){waiting=null;more.style.visibility='hidden';res()}}
+    }
+    skipFn=fin;typing=setInterval(function(){i+=3;if(i>=text.length)fin();else txt.textContent=text.slice(0,i)},14);
+  });
+}
+dlg.addEventListener('click',function(){if(typing){skipFn&&skipFn()}else if(waiting){waiting()}});
+document.addEventListener('keydown',function(e){
+  var t=e.target.tagName;if(t==='INPUT'||t==='BUTTON'&&(e.key===' '||e.key==='Enter'))return;
+  if(e.key==='Enter'||e.key===' '||e.key==='ArrowRight'){e.preventDefault();if(typing){skipFn&&skipFn()}else if(waiting){waiting()}}
+  else if(/^[1-9]$/.test(e.key)){var b=$$('.opt',chs)[+e.key-1];if(b)b.click()}
+});
+function stage(html){stg.innerHTML=html;stg.style.display='block';swEl.style.display='flex';document.body.classList.add('staged');stg.scrollTop=0;return stg}
+function unstage(){stg.style.display='none';swEl.style.display='none';stg.innerHTML='';document.body.classList.remove('staged')}
+function castSet(map){
+  var cast=$('#cast');
+  $$('.ch',cast).forEach(function(e){if(!(e.dataset.id in map))e.remove()});
+  for(var id in map){var e=$('.ch[data-id="'+id+'"]',cast);if(!e){e=document.createElement('div');e.className='ch';e.dataset.id=id;e.innerHTML=charSVG(id);cast.appendChild(e)}e.dataset.pos=map[id]}
+}
+function emote(id,k){var e=$('.ch[data-id="'+id+'"]');if(!e)return;$('.mouth',e).setAttribute('d',MOUTH[k]);e.classList.toggle('brow-up',k==='wow')}
+function flash(k){document.body.classList.add(k);setTimeout(function(){document.body.classList.remove(k)},500)}
+function popup(t){var r=$('#score').getBoundingClientRect(),d=document.createElement('div');d.className='pop';d.textContent=t;d.style.left=r.left+'px';d.style.top=(r.bottom+4)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},1000)}
+var HEART='<svg viewBox="0 0 24 24"><path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.700-8 11-8 11z"/></svg>';
+function hud(){
+  $('#hearts').innerHTML=[0,1,2].map(function(i){return '<span class="'+(i<S.hearts?'':'off')+'">'+HEART+'</span>'}).join('');
+  $('#score').textContent=S.score;
+  var n=S.codex.filter(Boolean).length;$('#cxN').textContent=n;
+  $$('#pills button').forEach(function(b,i){b.classList.toggle('on',i===S.ch);b.classList.toggle('done',!!S.codex[i]&&i!==S.ch)});
+  $('#chnum').textContent=S.ch>=0?'Глава '+(S.ch+1)+' из 10':'';$('#chname').textContent=S.ch>=0?TITLES[S.ch]:'';
+}
+function gameOver(){
+  var ch=S.ch;
+  $('#ov').style.display='flex';
+  $('#ov').innerHTML='<div class="box"><div class="tag">Терпение кончилось</div><h2>Бармен вас вежливо не замечает</h2><p class="lead">В Англии это самый громкий способ сказать «нет». Попробуйте главу ещё раз.</p><div class="btns"><button class="btn primary" id="again" type="button">Начать главу заново</button></div></div>';
+  $('#again').onclick=function(){$('#ov').style.display='none';start(ch)};
+}
+async function wrong(text){
+  S.hearts--;hud();flash('bad');
+  if(S.hearts<=0){gameOver();return never()}
+  emote('kate','neutral');await say('kate',text);
+}
+async function right(text,pts,who){
+  S.score+=(pts||10);hud();flash('good');popup('+'+(pts||10));
+  await say(who||'kate',text);
+}
+async function finish(i,title,text){
+  S.codex[i]={title:title,text:text};hud();unstage();
+  stage('<div class="tag">Запись в блокнот Кейт</div><h2 style="margin:.2em 0 .4em">'+title+'</h2><p class="lead">'+text+'</p><div class="btns"><button class="btn primary" id="nxt" type="button">'+(i<9?'Следующая глава':'Итоги')+'</button></div>');
+  emote('kate','smile');
+  await pr(function(r){$('#nxt').onclick=r});
+  if(i<9)start(i+1);else results();
+}
+function start(i){
+  tok++;clearInterval(typing);typing=null;waiting=null;skipFn=null;
+  $('#ov').style.display='none';unstage();chs.innerHTML='';txt.textContent='';nameEl.style.display='none';more.style.visibility='hidden';
+  S.ch=i;S.hearts=3;hud();castSet({});
+  var glow=['#ffd58a','#ffc46e','#ffb86a','#ffe08a','#ffd09a','#ffc87a','#f0b0a0','#e8d29a','#ffb870','#ffe3a0'][i]||'#ffd58a';
+  $$('#lamps circle').forEach(function(c){c.setAttribute('fill','url(#lg)')});
+  CHAPTERS[i]().catch(function(e){console.error(e)});
+}
+
+/* ---------- chapter helpers ---------- */
+function swSVG(){
+  var t='',i;for(i=0;i<60;i++){var a=i*6*Math.PI/180,r1=i%5?86:80;t+='<line x1="'+(120+Math.sin(a)*r1)+'" y1="'+(154-Math.cos(a)*r1)+'" x2="'+(120+Math.sin(a)*92)+'" y2="'+(154-Math.cos(a)*92)+'" stroke-width="'+(i%5?1:3)+'"/>'}
+  return '<svg viewBox="0 0 240 250" width="190" style="display:block;margin:0 auto" aria-label="Секундомер"><rect x="104" y="6" width="32" height="16" rx="4" fill="#f0bd62"/><rect x="112" y="20" width="16" height="14" fill="#f0bd62"/><circle cx="120" cy="154" r="98" fill="#24150c" stroke="#f0bd62" stroke-width="6"/><g stroke="#fff6e3" stroke-linecap="round">'+t+'</g><line id="hand" x1="120" y1="154" x2="120" y2="84" stroke="#eda63b" stroke-width="4" stroke-linecap="round" style="transform-origin:120px 154px"/><circle cx="120" cy="154" r="8" fill="#eda63b"/><text id="swt" x="120" y="204" text-anchor="middle" font-family="Playfair Display,Georgia,serif" font-weight="800" font-size="26" fill="#fff6e3">00:00</text></svg>';
+}
+function fmt(s){s=Math.floor(s);var m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x}
+function runSW(a,b){
+  return pr(function(res){var t0=performance.now(),D=1700,tk=tok;
+    (function f(now){if(tk!==tok)return;var p=Math.min(1,(now-t0)/D),e=1-Math.pow(1-p,3),s=a+(b-a)*e;
+      var h=$('#hand'),tx=$('#swt');if(h)h.style.transform='rotate('+(s%60)*6+'deg)';if(tx)tx.textContent=fmt(s);
+      if(p<1)requestAnimationFrame(f);else res()})(t0);});
+}
+function queueHTML(){
+  function w(id,l,t,n){return '<div class="who'+(id==='me'?' me':'')+'" id="q'+id+'" style="left:'+l+'%;top:'+t+'px"><svg viewBox="0 0 40 62"><use href="#pers"/></svg><span class="n">'+n+'</span><span class="bang">!</span></div>'}
+  return '<div class="q" id="qs"><div class="counter"></div><div class="barman" id="bm"><svg viewBox="0 0 40 62"><use href="#pers"/></svg></div>'+w(1,36,96,1)+w(2,56,110,2)+w(3,20,140,3)+w(4,70,150,4)+w('me',44,200,5)+'</div>';
+}
+function planHTML(){
+  return '<h3>Где заговорить с незнакомцем?</h3><svg viewBox="0 0 400 300" style="width:100%;max-height:44vh" id="plan" aria-label="План паба"><rect x="2" y="2" width="396" height="296" rx="10" fill="rgba(0,0,0,.25)" stroke="rgba(255,236,200,.3)"/>'+
+  '<rect class="zone" data-z="bar" x="14" y="14" width="372" height="78" rx="8"/><rect class="zone" data-z="near" x="14" y="100" width="260" height="76" rx="8"/><rect class="zone" data-z="far" x="14" y="184" width="260" height="102" rx="8"/><rect class="zone" data-z="darts" x="286" y="100" width="100" height="186" rx="8"/>'+
+  '<g pointer-events="none"><rect x="40" y="24" width="320" height="22" rx="6" fill="#8a5a30" stroke="#f0bd62" stroke-width="2"/><text x="200" y="40" text-anchor="middle" fill="#fff6e3" font-size="12" font-weight="800">БАРНАЯ СТОЙКА</text><circle cx="200" cy="64" r="7" fill="#d3dbc8"/><circle cx="110" cy="66" r="7" fill="#fff6e3"/><circle cx="290" cy="68" r="7" fill="#fff6e3"/>'+
+  '<g fill="#7b4f2c" stroke="#f0bd62"><circle cx="70" cy="138" r="16"/><circle cx="150" cy="138" r="16"/><circle cx="230" cy="138" r="16"/><circle cx="70" cy="236" r="16"/><circle cx="150" cy="236" r="16"/><circle cx="230" cy="236" r="16"/></g>'+
+  '<circle cx="336" cy="170" r="30" fill="#24150c" stroke="#f0bd62" stroke-width="3"/><circle cx="336" cy="170" r="20" fill="none" stroke="#eda63b" stroke-width="3"/><circle cx="336" cy="170" r="9" fill="#ff8f6b"/><text x="336" y="230" text-anchor="middle" fill="#fff6e3" font-size="12" font-weight="800">ДАРТС</text></g></svg><p class="cap">Нажмите на зону плана.</p>';
+}
+function faceSVG(brows,mouth){return '<svg viewBox="0 0 100 100"><circle cx="50" cy="52" r="40" fill="#f3d2b3" stroke="#f0bd62" stroke-width="3"/><circle cx="36" cy="46" r="4" fill="#2a1a10"/><circle cx="64" cy="46" r="4" fill="#2a1a10"/><path d="'+brows+'" stroke="#3a2412" stroke-width="4" fill="none" stroke-linecap="round"/><path d="'+mouth+'" stroke="#6b2f20" stroke-width="4" fill="none" stroke-linecap="round"/></svg>'}
+function tipHTML(){}
+function glassPair(id){return '<svg viewBox="0 0 300 200" width="300" style="display:block;margin:0 auto;max-width:100%" class="cheers" id="'+id+'" aria-label="Два бокала"><g transform="translate(30 10)"><g class="g1">'+pint(1,1)+'</g></g><g transform="translate(150 10)"><g class="g2">'+pint(1,1)+'</g></g><g class="spark"><path d="M150 30 L156 46 L172 52 L156 58 L150 74 L144 58 L128 52 L144 46 Z" fill="#fff4da"/></g></svg>'}
+
+/* ---------- chapters ---------- */
+var CHAPTERS=[];
+
+CHAPTERS[0]=async function(){
+  castSet({you:'m'});emote('you','neutral');
+  await say('narr','Вечер в Англии. Вы нашли паб, заняли свободный столик и сели. Осталось дождаться официанта.');
+  var marks=[[144,'За соседним столом американская пара встаёт и идёт к стойке. Они сообразили быстрее всех: прошло 2 минуты 24 секунды.'],
+    [1440,'Французская пара встаёт и уходит, бурча что-то нелестное про сервис и про англичан. Прошло 24 минуты.'],
+    [2713,'Итальянская компания всё ещё здесь: рекорд ожидания 45 минут 13 секунд. Они так увлечённо спорят о футболе, что почти не страдают.']];
+  stage('<h3>Вы ждёте официанта</h3>'+swSVG()+'<div class="btns" style="justify-content:center"><button class="btn" id="wt" type="button">Ждать ещё</button><button class="btn primary" id="stand" type="button">Встать и оглядеться</button></div>');
+  var t=0,w=0;
+  while(w<marks.length){
+    var act=await pr(function(res){$('#wt').onclick=function(){res('w')};$('#stand').onclick=function(){res('s')}});
+    if(act==='s')break;
+    await runSW(t,marks[w][0]);t=marks[w][0];
+    var sp=say('narr',marks[w][1]);w++;
+    if(w>=marks.length)await sp;
+  }
+  unstage();castSet({you:'l',kate:'r'});emote('kate','smile');
+  await say('kate',['Вы встали, не дожидаясь. Верный инстинкт.','Вы поняли довольно быстро, почти как американцы.','Вы терпеливо ждали, пока французы не сдались. Стойкость достойная, но бесполезная.','Вы просидели 45 минут: всех обогнали, кроме итальянцев.'][w]);
+  await say('kate','Меня зовут Кейт Фокс, я социальный антрополог. Помогу вам пережить этот вечер. И главное: вас никто не игнорирует. Просто здесь так устроено.');
+  var T=[['Кто вы такая?','Я сооснователь и сопредседатель Центра исследования социальных проблем (SIRC) в Оксфорде. Моя книга «Watching the English» вышла в 2004 году и стала международным бестселлером.'],
+    ['Что за «грамматика»?','Родную грамматику мы чувствуем, но объяснить не можем. С поведением так же: никто не помнит, чтобы ему объясняли, что в пижаме на работу не ходят. Я ищу эту неписаную грамматику английскости.'],
+    ['Как вы это изучаете?','Включённое наблюдение: участвую и наблюдаю одновременно. Ставлю опыты на себе. Утром считала, сколько прохожих скажет «sorry» при столкновении, а потом прыгала через очередь на вокзале. Пришлось выпить бренди для храбрости.'],
+    ['Что такое «правило»?','Не закон. Его можно нарушить, и реакция на нарушение показывает, насколько оно важно. Поэтому я так люблю их нарушать.']];
+  var asked={},n=0;
+  while(n<4){
+    var opts=T.map(function(x,i){return (asked[i]?'✓ ':'')+x[0]});
+    var i=await say('kate',n?'Что ещё хотите знать?':'Спрашивайте.',opts);
+    if(!asked[i]){asked[i]=1;n++}
+    await say('kate',T[i][1]);
+  }
+  await say('kate','Почему я занялась именно пабом? Посмотрите на цифры.');
+  stage('<div class="rings"><div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" data-v="75"/></svg><div class="v"><span>&gt;75 %</span><small>взрослых бывают в пабах</small></div></div><div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" data-v="33"/></svg><div class="v"><span>&gt;33 %</span><small>ходят каждую неделю</small></div></div></div><p class="cap" style="text-align:center;margin-top:10px">Паб — репрезентативная выборка: все возрасты, классы и профессии.</p>');
+  setTimeout(function(){$$('.ring .fg').forEach(function(f){f.style.strokeDashoffset=314*(1-f.dataset.v/100)})},120);
+  await say('kate','Невозможно понять англичан, не проведя много времени в пабах. А почти можно понять их, вообще из паба не выходя.');
+  await right('Задание принято: идём к стойке.',10);
+  await finish(0,'Что такое правило','Правило не закон: его можно нарушить, и реакция на нарушение показывает, насколько оно важно.');
+};
+
+CHAPTERS[1]=async function(){
+  castSet({you:'l',kate:'r'});emote('kate','smile');
+  await say('kate','Первое правило: общительности. Барная стойка — одно из немногих мест в Англии, где совершенно нормально заговорить с незнакомцем.');
+  await say('you','Звучит заманчиво. Но где именно?');
+  stage(planHTML());
+  var Z={near:'Столики рядом со стойкой: можно, но слабее. Чем дальше от стойки, тем приватнее.',far:'Дальние столики — приватная зона. Сюда без приглашения не подходят.',darts:'Дартс и бильярд: знакомятся по жёстким правилам и только с теми, кто стоит рядом с игроками. Вы просто стоите у стены.'};
+  while(true){
+    var z=await pr(function(res){$$('.zone').forEach(function(e){e.onclick=function(){res(e.dataset.z)}})});
+    if(z==='bar')break;
+    if(z==='near')await say('kate',Z.near);else await wrong(Z[z]);
+  }
+  await right('Верно. У стойки привычные правила приватности временно отключаются. Я называю это «культурной ремиссией».',15);
+  unstage();castSet({you:'l',bob:'r'});emote('bob','smile');
+  await say('bob','Ждёшь пинту, да? Погодка сегодня, а?');
+  var a=await say('you','Что ответить?',['Да, не жалуемся!','Лучше бы дождь, честно.','Простите, я не разговариваю с незнакомцами.']);
+  if(a===2){castSet({you:'l',kate:'r'});await wrong('У стойки так нельзя: вы отказываетесь от единственной законной возможности поболтать. Попробуйте снова.');castSet({you:'l',bob:'r'});await say('bob','Погодка сегодня, а?');await say('you','Да, не жалуемся!')}
+  await right('Отлично. Видите, как просто?',10);
+  castSet({you:'l',kate:'r'});
+  await say('kate','Теперь понятно, почему в пабе нет официантов? Если бы вам приносили напитки за столик, люди сидели бы изолированно. А дорога к стойке — законный повод «случайно» оказаться рядом с незнакомцем.');
+  await say('kate','Англичане сдержанны и зажаты, им нужна помощь. Но «ремиссия» — не вседозволенность, а упорядоченное ослабление правил.');
+  await finish(1,'Правило общительности','У барной стойки сдержанность на время отключается («культурная ремиссия»). Чем дальше столик от стойки, тем он приватнее. Дартс и бильярд: знакомятся по жёстким правилам.');
+};
+
+CHAPTERS[2]=async function(){
+  castSet({you:'l',kate:'r'});
+  await say('narr','Паб набит. Люди толпятся у стойки, и никакой очереди не видно.');
+  await say('kate','Англичане встают в очередь везде. Венгерский юморист Джордж Микеш шутил, что англичанин и в одиночку образует «очередь из одного человека». А у стойки очереди нет. Точнее, она невидимая.');
+  stage('<h3>Вы пятый</h3>'+queueHTML()+'<div class="btns"><button class="btn" id="showq" type="button">Показать невидимую очередь</button></div>');
+  $('#showq').onclick=function(){$('#qs').classList.toggle('showq')};
+  function serve(k){$('#q'+k).classList.add('served')}
+  await say('narr','Бармен Джим обслуживает первого.');serve(1);
+  var a;
+  while(true){
+    a=await say('you','Что вы сделаете?',['Подожду.','Протиснусь вперёд: у меня всего один заказ.']);
+    if(a===0)break;
+    var me=$('#qme');me.style.left='46%';me.style.top='70px';await sleep(900);$('#qs').classList.add('frown');$('#bm').classList.add('away');
+    await wrong('Влезшего без очереди бармен игнорирует, а соседи строго осуждают. Это то же «cutting in line», только без линии.');
+    $('#qs').classList.remove('frown');$('#bm').classList.remove('away');me.style.left='44%';me.style.top='200px';
+  }
+  await right('Мудро.',10);
+  await sleep(300);serve(2);
+  await say('narr','Джим обслуживает второго. На секунду он смотрит в вашу сторону.');
+  while(true){
+    a=await say('you','Он смотрит на вас. Что дальше?',['Окликнуть: «Эй, я здесь!»','Не двигаться: он просто ведёт счёт.','Помахать рукой.']);
+    if(a===1)break;
+    await wrong('Он смотрел не на вас, а сквозь вас: считал, кто следующий. Бармены в этом исключительно хороши.');
+  }
+  await right('Вот именно. И клиенты, и бармены точно знают, кто за кем.',15);
+  serve(3);await sleep(400);serve(4);$('#qs').classList.add('showq');
+  await say('narr','Третий и четвёртый получили своё. Теперь Джим смотрит прямо на вас. Ваша очередь.');
+  await say('kate','За невидимой очередью, возможно, стоит английское уважение к честной игре — fair play.');
+  await finish(2,'Невидимая очередь','У стойки очереди нет, но она есть: клиенты и бармены знают, кто за кем. Влезший без очереди будет проигнорирован барменом и осуждён соседями.');
+};
+
+CHAPTERS[3]=async function(){
+  castSet({you:'l',jim:'m',kate:'r'});emote('jim','neutral');
+  await say('kate','Ваша очередь. Теперь самое трудное: дать бармену понять, что вы ждёте. Говорить нельзя. Шуметь нельзя.');
+  await say('kate','Правила разговора в пабе регулируют и невербальное общение. Это как фильм Бергмана: всё решает движение брови.');
+  var G=[['Крикнуть «Эй, бармен!»',0],['Щёлкнуть пальцами',0],['Постучать монетами по стойке',0],['Помахать рукой над головой',0],['Держать в руке купюру или пустой бокал',1],['Встретиться с барменом взглядом',1]];
+  stage('<h3>Выберите допустимые приёмы</h3><div class="chips" id="gs">'+G.map(function(g,i){return '<button class="chip" data-i="'+i+'" type="button">'+g[0]+'</button>'}).join('')+'</div><div class="btns"><button class="btn primary" id="chk" type="button">Проверить</button></div>');
+  $$('#gs .chip').forEach(function(c){c.onclick=function(){c.classList.toggle('sel')}});
+  while(true){
+    await pr(function(r){$('#chk').onclick=r});
+    var bad=0;$$('#gs .chip').forEach(function(c,i){if(c.classList.contains('sel')!==!!G[i][1])bad++});
+    if(!bad)break;
+    await wrong('Звать, щёлкать, стучать и махать нельзя. Допустимо держать деньги или пустой бокал и ловить взгляд. Можно поставить локоть и поднять руку с купюрой, но не всю руку.');
+  }
+  await right('Именно так.',10);
+  stage('<h3>Какое у вас лицо?</h3><div class="faces" id="fs"></div>');
+  var F=[['M26 38 Q36 30 46 38 M54 38 Q64 30 74 38','M28 66 Q50 92 72 66','Сияющий от счастья','Если вы слишком довольны, бармен решит, что вас уже обслужили.',0],
+    ['M26 34 L46 42 M74 34 L54 42','M30 72 Q50 58 70 72','Сердитый','Сердитое лицо — это шум без звука. Нужна надежда, а не упрёк.',0],
+    ['M26 44 Q36 34 46 40 M74 44 Q64 34 54 40','M32 70 Q50 64 68 70','Ожидание, надежда, лёгкая тревога','',1],
+    ['M28 38 L46 38 M54 38 L72 38','M32 68 L68 68','Невозмутимый','Без выражения бармен не поймёт, что вы ждёте.',0]];
+  $('#fs').innerHTML=F.map(function(f,i){return '<button class="face" data-i="'+i+'" type="button">'+faceSVG(f[0],f[1])+f[2]+'</button>'}).join('');
+  while(true){
+    var fi=await pr(function(r){$$('#fs .face').forEach(function(b){b.onclick=function(){r(+b.dataset.i)}})});
+    if(F[fi][4])break;
+    await wrong(F[fi][3]);
+  }
+  await right('Да. Ожидание, надежда и лёгкая тревога: так смотрит человек, которого скоро обслужат.',10);
+  stage('<h3>Поймайте взгляд</h3><svg viewBox="0 0 260 150" width="260" style="display:block;margin:0 auto" class="eye" id="eye" aria-label="Глаз бармена"><path class="brw" d="M40 40 Q130 6 220 40" fill="none" stroke="#fff6e3" stroke-width="10" stroke-linecap="round"/><path d="M30 90 Q130 20 230 90 Q130 150 30 90Z" fill="#fff4da" stroke="#f0bd62" stroke-width="3"/><g class="pupil" id="pup"><circle cx="130" cy="88" r="30" fill="#6b4423"/><circle cx="130" cy="88" r="14" fill="#1b0f08"/><circle cx="120" cy="78" r="5" fill="#fff"/></g></svg><div class="gz-track"><div class="gz-zone"></div><div class="gz-mark" id="gm"></div></div><p class="cap">Взгляд бармена блуждает. Нажмите, когда метка в зелёной зоне. Пробел тоже работает.</p><div class="btns"><button class="btn primary" id="brow" type="button">Поднять брови</button></div>');
+  var tk=tok,pos=0,raf;
+  (function loop(t){if(tk!==tok)return;pos=50+50*Math.sin(t/520);var m=$('#gm'),p=$('#pup');if(m)m.style.left=pos+'%';if(p)p.style.transform='translateX('+((pos-50)*1.1)+'px)';raf=requestAnimationFrame(loop)})(performance.now());
+  $('#brow').focus();
+  while(true){
+    var hit=await pr(function(r){$('#brow').onclick=function(){r(pos>=40&&pos<=60)}});
+    if(hit){cancelAnimationFrame(raf);$('#eye').classList.add('up');$('#pup').style.transform='';break}
+    await wrong('Мимо: бармен смотрел в другую сторону. Ждите, когда взгляды встретятся.');
+    $('#brow').focus();
+  }
+  castSet({you:'l',jim:'m',kate:'r'});emote('jim','smile');
+  await say('narr','Взгляды встретились. Вы коротко поднимаете брови. Джим отвечает кивком и поднятым пальцем.');
+  await right('Этот сигнал значит: «Вижу, что вы ждёте, обслужу, как только смогу». Никто из англичан этих правил не замечает: они делают это автоматически.',20);
+  await say('kate','Есть исключение. Завсегдатай может громко крикнуть: «Эй, будет сегодня выпивка в этом тысячелетии?» Но это особый этикет между ним и барменом. Новичку не положено.');
+  await finish(3,'Пантомима','Не кричать, не щёлкать пальцами, не стучать монетами, не махать. Держать деньги или пустой бокал, поймать взгляд, поднять брови. Лицо: ожидание, надежда, лёгкая тревога.');
+};
+
+CHAPTERS[4]=async function(){
+  castSet({you:'l',jim:'m',kate:'r'});emote('jim','smile');
+  var pl=0,th=0;
+  function show(){stage('<h3>Счётчик вежливости</h3><div style="display:flex;gap:18px;align-items:center"><div style="width:70px">'+pint(1)+'</div><div><p class="lead">please: <b>'+pl+'</b> из 2<br>thank you: <b>'+th+'</b> из 3</p><p class="cap">В среднем столько слов вежливости Фокс насчитала на обычную покупку.</p></div></div>')}
+  show();
+  await say('kate','Четвёртое правило. К стойке идёт один человек, максимум двое, и платит один за всю компанию. А заказ строится по формуле.');
+  var a;
+  while(true){
+    a=await say('jim','Слушаю вас.',['Одно пиво горького!','A pint of bitter, please.','Эй, пинту! Живее!']);
+    if(a===1)break;
+    await wrong('Забыть «please» — серьёзный проступок. Иностранцу простят неверное название пива, жест и акцент, но не это.');
+  }
+  pl++;show();await right('Pint of bitter — пинта горького. Для половинки: half a lager, please.',10);
+  await say('narr','Джим наливает пинту и ставит перед вами.');
+  while(true){
+    a=await say('you','Что вы скажете?',['Thanks!','Ничего: молча забрать бокал.','Cheers!']);
+    if(a!==1)break;
+    await wrong('Каждое выполненное действие получает «спасибо»: и когда вам подали напиток, и когда дали сдачу. Хотя бы кивок с улыбкой.');
+  }
+  th++;show();await right('Верно. Thanks, cheers или кивок с улыбкой.',10);
+  await say('narr','Вы протягиваете деньги, Джим даёт сдачу.');
+  while(true){
+    a=await say('you','Сдача в руке. Что вы скажете?',['Thanks.','Пересчитать и молча уйти.']);
+    if(a===0)break;
+    await wrong('И за сдачу тоже. У «спасибо» верхнего предела нет: Фокс насчитывала и пять.');
+  }
+  th++;show();
+  await say('jim','Thank you, mate.');th++;show();
+  await right('Видите? Это работает в обе стороны: продавец говорит «please» так же, как покупатель.',15);
+  await say('kate','Любопытный вывод: Англия одержима классами, но ежеминутная вежливость создаёт ощущение удивительного равенства. Бармен и клиент слышат классовую разницу по акценту, но унижения нет, а клиент обязан быть уважительным.');
+  await finish(4,'Please и thanks','Без «please» не обслужат, и «thanks» нужно говорить за напиток и за сдачу. В среднем два «please» и три «thank you» на покупку. Вежливость создаёт ощущение равенства.');
+};
+
+CHAPTERS[5]=async function(){
+  castSet({you:'l',jim:'m',kate:'r'});emote('jim','smile');
+  await say('kate','Вершина английской изобретательности. Чаевых бармену не дают. Вместо этого его угощают выпивкой.');
+  await say('kate','Деньги напоминают, что один обслуживает другого. Напиток — приглашение выпить вместе, как равные. Как отблагодарить Джима?');
+  var a;
+  stage('<h3>Как отблагодарить бармена?</h3><div style="display:flex;gap:18px;justify-content:center;align-items:center"><div style="width:70px">'+pint(1)+'</div><p class="cap">Джим налил вам отличную пинту.</p></div>');
+  var tips=['Оставить монеты на стойке.','Can I buy you a drink?','And one for yourself?'];
+  while(true){
+    a=await say('you','Что сделать?',tips);
+    if(a===2)break;
+    if(a===0)await wrong('Монеты напомнят, что один обслуживает другого. А мы хотим равенства.');
+    else await wrong('Формально допустимо, но слово «купить» звучит так, будто речь о деньгах. А о деньгах говорить неприлично. Все понимают, что они участвуют, но вслух этого не произносят.');
+  }
+  await right('Верная фраза. Теперь громкость.',10);
+  stage('<h3>Громкость</h3><p>Фраза должна звучать как вопрос и произноситься негромко, без публичной демонстрации щедрости.</p><input type="range" id="vol" min="0" max="100" value="80" aria-label="Громкость"><p class="said" id="vlab"></p><div class="btns"><button class="btn primary" id="say1" type="button">Сказать</button></div>');
+  function lab(){var v=+$('#vol').value;$('#vlab').textContent=v<=35?'Негромко, как вопрос.':v<=65?'Слышно соседям у стойки.':'На весь паб, с демонстрацией щедрости.'}
+  $('#vol').oninput=lab;lab();
+  while(true){
+    await pr(function(r){$('#say1').onclick=r});
+    if(+$('#vol').value<=35)break;
+    await wrong('Слишком громко: вы демонстрируете щедрость, и это уже неловко. Скажите негромко.');
+  }
+  await right('Идеально: негромко, вопросом.',15);
+  await say('jim','Thanks, I\'ll have a half.');
+  stage('<h3>Ваш счёт</h3><p class="lead">Пинта и половинка: итого <b>£ ●●,●●</b></p><p class="cap">Бармен добавил цену напитка и назвал новую сумму. Так вы косвенно узнали цену, не услышав её. Сумма небольшая, и об этом никто не говорит вслух.</p>');
+  await say('narr','Джим поднимает бокал в вашу сторону.');
+  stage('<h3>Cheers!</h3>'+glassPair('cl1')+'<div class="btns" style="justify-content:center"><button class="btn primary" id="clk" type="button">Чокнуться</button></div>');
+  await pr(function(r){$('#clk').onclick=function(){var s=$('#cl1');s.classList.add('clink');setTimeout(r,900)}});
+  await right('Если в баре толпа, бармен выпьет позже, но найдёт глазами угостившего, поднимет бокал, кивнёт и улыбнётся. Даже через несколько часов.',20);
+  await say('kate','Бармены нередко отвечают завсегдатаям встречным угощением. Это поддерживает ощущение дружеского обмена между равными.');
+  await finish(5,'And one for yourself?','Вместо чаевых бармена угощают напитком: негромко, вопросом, без слова «купить». Деньги напоминают об обслуживании, напиток приглашает как равного.');
+};
+
+CHAPTERS[6]=async function(){
+  castSet({us:'l',you:'m',fr:'r'});emote('us','wow');emote('fr','frown');
+  await say('narr','За соседним столиком двое иностранцев наблюдали за вашей сценой с барменом.');
+  await say('us','Это «And one for yourself?»... Настоящая византийщина! Зачем так усложнять, если можно просто дать пару монет?');
+  var a=await say('you','Что вы ответите американцу?',['Вы правы: это просто глупость.','Правила вежливости и правда запутанны и скрывают статусные различия. Но у ритуала есть смысл.','Так заведено, и точка.']);
+  if(a!==1){castSet({kate:'m'});emote('kate','neutral');await wrong('Не совсем. Отмахнуться нельзя: стоит признать, что вежливость запутанна и скрывает различия в статусе, но объяснить, зачем она.');castSet({us:'l',you:'m',fr:'r'})}
+  else await right('Хороший ответ.',10,'kate');
+  emote('fr','frown');
+  await say('fr','Всё это типичное английское лицемерие! Притворяются, что денег нет и бармен вам не служит.');
+  while(true){
+    a=await say('you','Что вы ответите французу?',['Вы правы: это сознательный обман.','Это не обман, а коллективное самовнушение: мы вместе договариваемся делать вид, что деньги не участвуют в покупке пинты. Любая вежливость отчасти притворство.','Это не лицемерие, потому что мы так не думаем.']);
+    if(a===1)break;
+    castSet({kate:'m'});await wrong('Нет: Фокс считает это не сознательным обманом, а коллективным самовнушением. Любая вежливость в какой-то мере притворство.');castSet({us:'l',you:'m',fr:'r'});
+  }
+  castSet({you:'l',kate:'r'});emote('kate','smile');
+  await right('Именно. А теперь соберите три мнения, которые это подтверждают.',15);
+  var Q=[['Браун и Левинсон','Социолингвисты писали: вежливость предполагает возможность агрессии и существует, чтобы её обезвредить.'],['Джереми Паксман','Журналист заметил: английские нормы этикета, кажется, придуманы, чтобы англичане защищались от самих себя.'],['Джордж Оруэлл','Называл Англию самой классовой страной под солнцем. Вежливость — маска, помогающая с этим жить.']];
+  stage('<h3>Три мнения</h3><div class="cards">'+Q.map(function(q,i){return '<button class="flip" data-i="'+i+'" type="button"><b>'+q[0]+'</b><span>Нажмите, чтобы открыть</span></button>'}).join('')+'</div>');
+  await pr(function(res){var n=0;$$('.flip').forEach(function(b){b.onclick=function(){if(b.classList.contains('open'))return;b.classList.add('open');$('span',b).textContent=Q[+b.dataset.i][1];n++;if(n===3)setTimeout(res,600)}})});
+  await say('kate','Возможно, ритуал нужен, чтобы острое ощущение классовых различий не вырывалось наружу в менее приемлемых формах.');
+  await finish(6,'Вежливость и притворство','Мы вместе делаем вид, что деньги и услуга не участвуют в покупке пинты. Это не обман, а коллективное самовнушение: вежливость отчасти притворство и обезвреживает агрессию и классовые различия.');
+};
+
+CHAPTERS[7]=async function(){
+  castSet({you:'l',kate:'r'});
+  await say('kate','Поговорим о языке завсегдатаев. Оговорка: в доступной мне версии главы этот фрагмент изложен частично, поэтому я опираюсь на мой путеводитель по пабам, написанный на тех же исследованиях.');
+  await say('narr','Вы возвращаетесь в паб на следующий вечер.');
+  castSet({you:'l',jim:'m',kate:'r'});
+  var a;
+  while(true){
+    a=await say('you','Как войти новичку?',['Сразу заказать пинту.','Сказать «Good evening» с улыбкой и кивком барменам и людям у стойки, потом заказывать.','Громко окликнуть всех в пабе.']);
+    if(a===1)break;
+    await wrong('Сначала поздоровайтесь. Своим вы не станете, но вас заметят, и следующие попытки заговорить встретят с большей благосклонностью.');
+  }
+  emote('jim','smile');await right('«Good evening» с улыбкой и кивком — и вы уже не безликий турист.',15);
+  await say('kate','Теперь представьте, что вы завсегдатай. Когда такой входит, его встречает хор приветствий по имени, и слова далеко не вежливые. Отвечать нужно в том же духе.');
+  castSet({you:'m',dave:'l',sue:'r'});emote('dave','smile');emote('sue','smile');
+  var R=[['dave','Опять пришёл? Дома, что ли, нет?',['Добрый вечер, уважаемый Дейв.','Эй, Дейв! А ты тут прописался, смотрю!','Молча кивнуть и пройти.'],1],
+    ['sue','Как раз вовремя, Сью заждалась: твой раунд!',['Простите, у меня нет мелочи.','Сью, ты вчера сбежала до своего раунда!','Какой раунд? Я только вошёл.'],1]];
+  for(var k=0;k<R.length;k++){
+    while(true){
+      await say(R[k][0],R[k][1]);
+      a=await say('you','Ваш ответ?',R[k][2]);
+      if(a===R[k][3])break;
+      castSet({you:'m',kate:'r',dave:'l',sue:'l2'});await wrong('Слишком холодно. Завсегдатаи отвечают по имени и в том же шутливо-дерзком тоне. Грубость тут признак близости.');
+      castSet({you:'m',dave:'l',sue:'r'});
+    }
+    await right('Принято! Вас назвали по имени, а вы ответили тем же.',15);
+  }
+  castSet({you:'l',kate:'r'});
+  await say('kate','Вне паба англичане считают слишком частое употребление имени чересчур фамильярным. Возможно, за высокомерной неприязнью к фамильярности прячется тайная потребность в ней, и паб — зона, где её можно удовлетворить.');
+  await finish(7,'Язык завсегдатаев','Завсегдатая встречают по имени и грубоватыми шутками. Новичку: сначала «Good evening» с улыбкой и кивком, потом заказ. Вне паба частое употребление имени кажется чересчур фамильярным.');
+};
+
+CHAPTERS[8]=async function(){
+  castSet({you:'l',dave:'r'});emote('dave','smile');
+  await say('kate','Последняя часть: паб-спор. Первая заповедь паба: не принимай ничего слишком всерьёз.');
+  await say('kate','Спор — игра. Правило согласия из главы о погоде здесь не работает: открытое несогласие становится способом выразить дружбу. А разговор прыгает с темы на тему.');
+  await say('dave','Так, слушай: «Ливерпуль» — худшая команда сезона. Спорим?');
+  var TP=['Футбол','Погода','Цены на пиво','Лучший нападающий','Дартс','Пробки на трассе','Чей раунд','Крикет'];
+  var RET=['Ты вообще ничего не понимаешь в футболе!','Чушь, и ты это знаешь!','Ну это уж слишком, купи себе очки!','Спорим на пинту, что нет?','Вот поэтому с тобой и интересно!'];
+  var bond=0,same=0,ti=1,rc=0;
+  stage('<h3>Цель: сблизиться со всей компанией</h3><div class="chain" id="chain"><span class="c">'+TP[0]+'</span></div><div class="said" id="dsay">Дейв ждёт вашей реплики.</div><div class="meter" aria-label="Близость"><i id="bm"></i></div><p class="cap" id="bt">Близость 0 %</p><div class="btns"><button class="btn primary" id="aArg" type="button">Поспорить</button><button class="btn" id="aAg" type="button">Согласиться</button><button class="btn" id="aHop" type="button">Сменить тему</button></div>');
+  function setB(v){bond=Math.max(0,Math.min(100,v));$('#bm').style.width=bond+'%';$('#bt').textContent='Близость '+bond+' %'}
+  while(bond<100){
+    var act=await pr(function(res){$('#aArg').onclick=function(){res('a')};$('#aAg').onclick=function(){res('g')};$('#aHop').onclick=function(){res('h')}});
+    if(act==='a'){
+      same++;
+      if(same>=3){setB(bond-30);same=0;emote('dave','frown');$('#dsay').textContent='Дейв закатывает глаза: вы застряли на одной теме.';await say('kate','Три раунда подряд об одном и том же. Вы становитесь неудобным собеседником. Перескакивайте с темы на тему.');emote('dave','smile')}
+      else{setB(bond+25);emote('dave','smile');$('#dsay').textContent='Дейв: «'+RET[rc++%RET.length]+'» Он улыбается. Вы стали ближе.'}
+    }else if(act==='g'){setB(bond-5);emote('dave','neutral');$('#dsay').textContent='Дейв: «Ты чего, заболел?» Вежливое согласие здесь только скучно.'}
+    else{same=0;setB(bond+5);var c=document.createElement('span');c.className='a';c.textContent='→';var d=document.createElement('span');d.className='c';d.textContent=TP[ti++%TP.length];$('#chain').appendChild(c);$('#chain').appendChild(d);$('#dsay').textContent='Свободные ассоциации: разговор перепрыгнул на другую тему. Так и надо.'}
+  }
+  await right('Вы и Дейв теперь не разлей вода. Заметьте: никто всерьёз не ссорился.',25);
+  await say('kate','Споры здесь подчиняются строгому кодексу. Это ещё один пример регулируемой нерегулярности.');
+  await finish(8,'Спор как игра','Первая заповедь паба: не принимай ничего слишком всерьёз. Несогласие сближает, а разговор прыгает с темы на тему.');
+};
+
+CHAPTERS[9]=async function(){
+  castSet({you:'l',kate:'r'});emote('kate','smile');
+  await say('kate','Вечер подходит к концу. Давайте подведём итоги. Налейте пять бокалов.');
+  var SM=['Правило общительности: англичане преодолевают замкнутость через посредников, но берегут приватность, а отступления строго упорядочены.','Невидимая очередь: упорядоченный беспорядок и верность идее fair play.','Пантомима: этикет важнее логики, и англичане не любят суеты, шума и привлечения внимания к себе.','Please, thanks и «And one for yourself?»: важность вежливости, неловкость перед темой классов, достоинства и недостатки вежливого эгалитаризма.','Язык завсегдатаев и споры: уход от иерархии в юмор и остроумие. Фокс сравнивает с Японией: тесный остров, сдержанность и острое чувство статуса.'];
+  stage('<h3>Пять итогов</h3><div class="glasses" id="gl">'+[1,2,3,4,5].map(function(n,i){return '<button type="button" data-s="'+i+'" aria-label="Итог '+n+'">'+pint(0)+'<b>'+n+'</b></button>'}).join('')+'</div><p class="said" id="sm">Нажмите на бокал.</p>');
+  await pr(function(res){var f={},n=0;$$('#gl button').forEach(function(b){b.onclick=function(){var k=+b.dataset.s;if(!f[k]){f[k]=1;n++}$('svg',b).style.setProperty('--f',1);$('#sm').textContent=SM[k];if(n===5)setTimeout(res,1200)}})});
+  await say('kate','И последняя формула, которая лучше всего объясняет паб: «регулируемая нерегулярность». Посмотрите на три мира.');
+  stage('<h3>Три мира</h3><canvas id="cv" width="520" height="300" aria-label="Анимация точек"></canvas><p class="said" id="mo"></p><div class="btns"><button class="btn" data-m="chaos" type="button">Правил нет</button><button class="btn" data-m="order" type="button">Правила жёсткие</button><button class="btn sel" data-m="pub" type="button">Паб</button><button class="btn primary" id="go9" type="button">Дальше</button></div>');
+  var cv=$('#cv'),c=cv.getContext('2d'),W=cv.width,H=cv.height,mode='pub',pts=[],tk=tok,i;
+  for(i=0;i<40;i++)pts.push({gx:50+(i%8)*60,gy:40+Math.floor(i/8)*50,x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*2.2,vy:(Math.random()-.5)*2.2,ph:Math.random()*6.3});
+  var M={chaos:'Правил нет: никто не знает, чего ждать от соседа, и всем неуютно.',order:'Жёсткие правила: всё предсказуемо, но нет места, где можно выдохнуть.',pub:'Паб: правила есть, а внутри обведённой зоны отступать разрешено, по договорённости.'};
+  function setM(m){mode=m;$$('.btns .btn[data-m]').forEach(function(b){b.classList.toggle('sel',b.dataset.m===m)});$('#mo').textContent=M[m]}
+  $$('.btns .btn[data-m]').forEach(function(b){b.onclick=function(){setM(b.dataset.m)}});setM('pub');
+  (function fr(t){if(tk!==tok)return;c.clearRect(0,0,W,H);var z={x:W/2-110,y:H/2-60,w:220,h:120};
+    if(mode==='pub'){c.fillStyle='rgba(237,166,59,.16)';c.strokeStyle='#f0bd62';c.setLineDash([6,5]);c.lineWidth=2;c.fillRect(z.x,z.y,z.w,z.h);c.strokeRect(z.x,z.y,z.w,z.h);c.setLineDash([])}
+    pts.forEach(function(p){var x,y,col='#fff6e3';
+      if(mode==='chaos'){p.x+=p.vx;p.y+=p.vy;if(p.x<8||p.x>W-8)p.vx*=-1;if(p.y<8||p.y>H-8)p.vy*=-1;x=p.x;y=p.y;col='#ff8f6b'}
+      else{x=p.gx;y=p.gy;if(mode==='pub'&&x>z.x&&x<z.x+z.w&&y>z.y&&y<z.y+z.h){x+=Math.sin(t/380+p.ph)*16;y+=Math.cos(t/450+p.ph*1.3)*12;col='#eda63b'}}
+      c.beginPath();c.arc(x,y,7,0,6.283);c.fillStyle=col;c.fill()});
+    requestAnimationFrame(fr)})(0);
+  await pr(function(r){$('#go9').onclick=r});
+  unstage();
+  castSet({you:'l',kate:'r'});
+  await say('narr','Вы выходите из паба и видите знакомую картину: туристы за пустым столиком терпеливо ждут официанта.');
+  var a=await say('you','Что вы сделаете?',['Пройти мимо: пусть учатся сами.','Подойти и подсказать: «Идите к стойке».']);
+  var S9=['Они сидят за столиком. Туристы так и не понимают, что здесь делают.','Вы подсказали туристам: встать, подойти к стойке, поймать взгляд бармена и поднять бровь. Они справились. И даже поболтали с соседом о погоде.'];
+  if(a===0)await say('narr','Вы проходите мимо. Туристы продолжают ждать. Но вы-то теперь знаете. Давайте исправим это.');
+  stage('<h3>Туристы справились</h3><svg viewBox="0 0 440 230" style="width:100%;max-height:36vh" aria-label="Туристы у стойки"><rect width="440" height="230" rx="10" fill="rgba(0,0,0,.2)"/><rect x="290" y="16" width="130" height="198" rx="8" fill="#8a5a30" stroke="#f0bd62" stroke-width="3"/><text x="355" y="120" text-anchor="middle" fill="#fff6e3" font-size="14" font-weight="800" transform="rotate(-90 355 120)">БАР</text><g fill="#d3dbc8"><use href="#pers" x="392" y="80" width="24" height="38"/></g><g fill="#fff6e3"><use href="#pers" x="236" y="110" width="28" height="44"/></g><g fill="#8fb3c9"><use href="#pers" x="206" y="130" width="28" height="44"/></g><g fill="#eda63b"><use href="#pers" x="262" y="130" width="28" height="44"/></g><ellipse cx="80" cy="140" rx="50" ry="22" fill="#7b4f2c" stroke="#f0bd62" stroke-width="3"/><rect x="76" y="140" width="8" height="50" fill="#5a3a1e"/></svg><p class="cap">'+S9[1]+'</p>');
+  castSet({you:'l',kate:'r'});
+  await say('kate','Вот главный урок. Не список правил паба, а метод: если хотите понять чужую культуру, следите не за тем, что люди говорят, а за тем, чего они не делают. И спрашивайте: что будет, если нарушить?');
+  await say('kate','Тогда за смешными ритуалами проявляется логика: застенчивая нация придумала место, где можно быть общительной, равной и немного смешной, не нарушая при этом приличий.');
+  await finish(9,'Регулируемая нерегулярность','Англичане не отменяют правила: они создают специальное место, где правила можно нарушать по правилам.');
+};
+
+/* ---------- screens ---------- */
+function openCodex(){
+  $('#ov').style.display='flex';
+  var items=S.codex.map(function(c,i){return c?'<div><h4>'+(i+1)+'. '+c.title+'</h4>'+c.text+'</div>':''}).join('');
+  $('#ov').innerHTML='<div class="box"><div class="tag">Блокнот Кейт</div><h2>Записи, которые вы собрали</h2><div class="cx">'+(items||'<p class="cap">Пока пусто. Проходите главы.</p>')+'</div><div class="btns"><button class="btn primary" id="cl" type="button">Закрыть</button></div></div>';
+  $('#cl').onclick=function(){$('#ov').style.display='none'};
+}
+function title(){
+  tok++;clearInterval(typing);typing=null;waiting=null;S.ch=-1;S.score=0;S.hearts=3;S.codex=[];hud();unstage();castSet({you:'l',kate:'r'});chs.innerHTML='';txt.textContent='';nameEl.style.display='none';
+  $('#ov').style.display='flex';
+  $('#ov').innerHTML='<div class="box"><div class="tag">Интерактивная история · по книге «Watching the English»</div><h1>Один вечер в английском пабе</h1><p class="lead">Вы приехали в Англию и зашли в паб. Официантов нет, очереди не видно, а бармен ждёт каких-то бровей. Антрополог Кейт Фокс поможет пройти вечер и объяснит тайную грамматику английского разговора.</p><p class="cap">10 глав, мини-игры, 3 единицы терпения бармена на главу. Перейти к реплике: щелчок, пробел или Enter. Варианты ответов можно выбирать цифрами.</p><div class="btns"><button class="btn primary" id="go" type="button">Начать вечер</button></div><div class="tag" style="margin-top:8px">Или выберите главу</div><div class="menu" id="menu"></div></div>';
+  $('#go').onclick=function(){start(0)};
+  $('#menu').innerHTML=TITLES.map(function(t,i){return '<button type="button" data-i="'+i+'"><b>'+(i+1)+'</b>'+t+'</button>'}).join('');
+  $$('#menu button').forEach(function(b){b.onclick=function(){start(+b.dataset.i)}});
+}
+function results(){
+  tok++;unstage();chs.innerHTML='';txt.textContent='';nameEl.style.display='none';more.style.visibility='hidden';
+  var sc=S.score,r=sc>=230?['Завсегдатай','Вас окликнут по имени ещё до того, как вы откроете дверь.']:sc>=150?['Почти свой','Бармен уже узнаёт вас, а Дейв ждёт реванша по спору.']:['Вежливый турист','Вы справились. Ещё пара вечеров у стойки, и вас примут за своего.'];
+  castSet({you:'l',kate:'m',jim:'r'});emote('kate','smile');emote('jim','smile');
+  $('#ov').style.display='flex';
+  $('#ov').innerHTML='<div class="box"><div class="tag">Вечер окончен</div><h1>'+r[0]+'</h1><p class="score-big">'+sc+' очков английскости</p><p class="lead">'+r[1]+'</p>'+glassPair('cl2')+'<div class="cx">'+S.codex.map(function(c,i){return c?'<div><h4>'+(i+1)+'. '+c.title+'</h4>'+c.text+'</div>':''}).join('')+'</div><div class="btns"><button class="btn primary" id="clk2" type="button">Чокнуться: Cheers!</button><button class="btn" id="re" type="button">Сыграть заново</button></div></div>';
+  $('#clk2').onclick=function(){var s=$('#cl2');s.classList.remove('clink');void s.getBoundingClientRect();s.classList.add('clink');setTimeout(function(){s.classList.remove('clink')},1500)};
+  $('#re').onclick=title;
+}
+
+/* ---------- init ---------- */
+$('#pills').innerHTML=TITLES.map(function(t,i){return '<button type="button" title="'+t+'" aria-label="Глава '+(i+1)+': '+t+'">'+(i+1)+'</button>'}).join('');
+$$('#pills button').forEach(function(b,i){b.onclick=function(){start(i)}});
+$('#cxBtn').onclick=openCodex;
+title();
+})();
+</script>
+</body>
+</html>
